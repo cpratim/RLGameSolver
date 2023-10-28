@@ -5,14 +5,13 @@ import numpy as np
 
 class MultiAgentEnv(gym.Env):
 
-    def __init__(self, agents, game):
-        self.agents = agents
+    def __init__(self, game):
         self.state = game.reset()
-        self.action_space = spaces.Discrete(game.action_space_size)
-        self.observation_space = spaces.Discrete(game.observation_space_size)
-        self.n_agents = len(self.agents)
+        self.action_space = game.get_action_space()
+        self.observation_space = game.get_observation_space()
+        self.n_agents = game.get_n_agents()
         self.agent_turn_idx = 0
-        self.done = False
+        self.move = 0
 
     def reset(self):
         for agent in self.agents:
@@ -33,9 +32,9 @@ class MultiAgentEnv(gym.Env):
         info: dict
     '''
     def step(self, action):
-        agent = self.agents[self.agent_turn_idx]
-        if action == 0:
-            pass
+        agent_idx = self.agent_turn_idx
+        updated_action_space, updated_observation_space = self.game.update(action, agent_idx)
+
 
     def _switch_agent_turn(self):
         self.agent_turn_idx = (self.agent_turn_idx + 1) % self.n_agents

@@ -1,5 +1,6 @@
 import numpy as np
 from solver.core import BaseGame
+from gym import spaces
 
 '''
 Implement an environment for a dice game. The game is played by two players.
@@ -26,25 +27,22 @@ The state of the game is represented by a dictionary with the following keys:
 
 The action space is a dictionary with the following keys:
     1. roll: roll the dice
-    2. powerup_1: use powerup 1
-    3. powerup_2: use powerup 2
+    2. stop: stop rolling the dice
+    3. powerup_1: use powerup 1
+    4. powerup_2: use powerup 2
 '''
 
 
-class DiceGamePlayer():
+class DiceGameAgent():
 
-    def __init__(self, brain):
-        self.brain = brain
+    def __init__(self):
         self.reward = 0
+        self.score = 0
+        self.used_powerup_1 = False
+        self.used_powerup_2 = False
+        self.rolled_6 = False
+        self.turn_sum = 0
         self.reset()
-
-    def get_signal(self, state):
-        return self.brain.get_action(state)
-    
-    def get_state_vector(self):
-        return np.array([
-            self.turn_sum, int(self.used_powerup_1), int(self.used_powerup_2), int(self.rolled_6)
-        ])
     
     def reset(self):
         self.used_powerup_1 = False
@@ -52,64 +50,97 @@ class DiceGamePlayer():
         self.rolled_6 = False
         self.turn_sum = 0
 
+    def stop_turn(self, add_to_score=True):
+        if add_to_score:
+            self.score += self.turn_sum
+        self.turn_sum = 0
+        self.rolled_6 = False
+
+    def use_powerup_1(self):
+        self.used_powerup_1 = True
+        self.reward -= 3
+
+    def use_powerup_2(self):
+        self.used_powerup_2 = True
+        self.reward -= 2
+
+    def roll(self):
+        roll = self._roll()
+        self.turn_sum += roll
+        if roll == 6:
+            self.rolled_6 = True
+        return roll
+    
+    def get_action_space(self):
+        space = [0, 1]
+        if not self.used_powerup_1:
+            space.append(2)
+        if not self.used_powerup_2:
+            space.append(3)
+        return spaces.Discrete(len(space))
+    
+    def get_observation_space(self, on_turn=False):
+        if on_turn:
+            space = [int(self.rolled_6), self.turn_sum, self.score, self.used_powerup_1, self.used_powerup_2]
+        else:
+            space = [self.score, self.used_powerup_1, self.used_powerup_2]
+        return space
+
 
 class DiceGame(BaseGame):
 
-    def __init__(self, n_players):
+    def __init__(self, n_agents):
         super().__init__()
-        self.players = [DiceGamePlayer() for _ in range(n_players)]
-        self.player_turn = 0
-        self.signals = {
-            0: 'roll',
-            1: 'stop',
-            2: 'powerup_1',
-            3: 'powerup_2',
-        }
+        self.agents = [DiceGameAgent() for _ in range(n_agents)]
+        self.n_agents = n_agents
+        self.agent_turn_idx = 0
+        self.move = 0
 
-    def _get_dice_roll(self):
-        return np.random.randint(1, 7)
-    
-    def _translate(self, signal):
-        return self.signals[signal]
+    def update(self, action, agent_idx):
+
+        agent = self.agents[agent_idx]
+        change_turn = False
+
+        if agent.rolled_6:
+            if agent.used_powerup_1:
+                agent.stop_turn(add_to_score=False)
+            elif action == 2:
+                agent.use_powerup_1()
+                agent.stop_turn(add_to_score=True)
+            change_turn = True
+
+        else:
+            if action == 0:
+                agent.roll()
+            elif action == 1:
+                agent.stop_turn(add_to_score=True)
+                change_turn = True
+            elif action == 3:
+                if self.max_agent_score() < 20:
+                    agent.use_powerup_2()
+                    for agent in self.agents:
+                        agent.score += 10
+        if change_turn:
+            self._switch_agent_turn()
+
+        return self.get_observation_space(), self.get_action_space(), 
+
+    def _switch_agent_turn(self):
+        self.agent_turn_idx = (self.agent_turn_idx + 1) % self.n_agents
+
+    def get_action_space(self):
+        return self.agents[self.agent_turn_idx].get_action_space()
+
+    def get_observation_space(self):
+        space = self.agents[self.agent_turn_idx].get_observation_space(on_turn=True)
+        for i in range(1, self.get_n_agents):
+            idx = (self.agent_turn_idx + i) % self.get_n_agents
+            space += self.agents[idx].get_observation_space(on_turn=False)
+        return spaces.MultiDiscrete(space)
+
+    def max_agent_score(self):
+        return max([agent.score for agent in self.agents])
     
     def reset(self):
-        for player in self.players:
-            player.reset()
-        self.player_turn = 0
-
-    def step(self):
-
-        player = self.agents[self.player_turn]
-        signal = player.get_signal(self.state.get_state_vector())
-        signal = self.signals[signal]
-
-        if player.roll_6:
-            if signal == 'stop':
-                player.turn_sum = 0
-                player.roll_6 = False
-            if signal == 'powerup_1':
-                player.used_powerup_1 = True
-                player.roll_6 = False
-                player.score += player.turn_sum
-                player.turn_sum = 0
-                self.reward -= 3
-            self.player_turn = (self.player_turn + 1) % len(self.agents)
-        else:
-
-            if signal == 'roll':
-                roll = self._get_dice_roll()
-                if roll == 6:
-                    player.roll_6 = True
-                player.turn_sum += roll
-            if signal == 'stop':
-                player.score += player.turn_sum
-                player.turn_sum = 0
-            if signal == 'powerup_2':
-                for p in self.agents:
-                    p.score += 10
-                player.reward -= 2
-            if player.score >= 30:
-                player.reward += 10
-                self.reset()
-                
-        
+        for agent in self.agents:
+            agent.reset()
