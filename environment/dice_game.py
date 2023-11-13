@@ -77,7 +77,7 @@ class DiceGameAgent():
             space.append(2)
         if not self.used_powerup_2:
             space.append(3)
-        return spaces.Discrete(len(space))
+        return spaces.MultiDiscrete(space)
     
     def get_observation_space(self, on_turn=False):
         if on_turn:
