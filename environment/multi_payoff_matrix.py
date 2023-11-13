@@ -1,10 +1,12 @@
 import gym
 import numpy as np
 import torch
+# from scipy.optimize import differential_evolution
+# from scipy.optimize import LinearConstraint
 
-class PayoffMatrixEnv(gym.Env):
+class MultiPayoffMatrixEnv(gym.Env):
 
-    def __init__(self, payoff_matrices: np.ndarray, round_size=100):
+    def __init__(self, payoff_matrices: np.ndarray, round_size=1000):
 
         self.payoff_matrices = payoff_matrices
         self.action_space = None
@@ -22,6 +24,8 @@ class PayoffMatrixEnv(gym.Env):
     def get_state(self):
         return torch.FloatTensor([0])
     
+    # def add_random_noise()
+    
     def _calculate_reward(self, agent_distributions):
         rewards_vec = np.zeros(self.n_agents)
 
@@ -37,6 +41,20 @@ class PayoffMatrixEnv(gym.Env):
                 rewards_vec[agent] += self.payoff_matrices[agent][tuple(action_vec)]
 
         return rewards_vec
+    
+    # def _calculate_reward_opt(self, agent_distributions):
+
+    #     for agent in range(self.n_agents):
+    #         action_dist = agent_distributions[agent]
+    #         other_agent_action_space = self.get_action_space((agent + 1) % self.n_agents)
+    #         bounds = [(0, 1)] * other_agent_action_space
+    #         linear_constraint = LinearConstraint(np.ones(other_agent_action_space), [1], [1])
+
+    #         def expected_reward(action_dist):
+    #             exp = 0
+    #             for i in range(other_agent_action_space):
+    #                 exp += action_dist[i] * self.payoff_matrices[agent][i]
+
 
         
     def step(self, agent_distributions):

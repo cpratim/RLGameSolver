@@ -5,7 +5,7 @@ import torch.optim as optim
 
 class QLearningAgentLSTM:
 
-    def __init__(self, action_space_size, observation_space_size, solver_brain, learning_rate=.001):
+    def __init__(self, action_space_size, observation_space_size, solver_brain, learning_rate=1):
         
         self.action_space_size = action_space_size
         self.model = solver_brain(observation_space_size, action_space_size)
@@ -32,7 +32,7 @@ class QLearningAgentLSTM:
         agent_distribution = self.model(state)
         loss = -torch.log(torch.clamp(agent_distribution, 1e-10, 1.0)) * reward
 
-        loss = loss.max()
+        loss = loss.sum()
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
