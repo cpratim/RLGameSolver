@@ -5,9 +5,10 @@ import torch.optim as optim
 
 class QLearningAgentLSTM:
 
-    def __init__(self, action_space_size, observation_space_size, solver_brain, learning_rate=1):
+    def __init__(self, action_space_size, observation_space_size, solver_brain, learning_rate=.01):
         
         self.action_space_size = action_space_size
+        learning_rate /= action_space_size
         self.model = solver_brain(observation_space_size, action_space_size)
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
 
@@ -25,14 +26,19 @@ class QLearningAgentLSTM:
         agent_distribution = self.model(state)
         return agent_distribution.detach().numpy()[0]
 
-    def update_model(self, state, reward):
+    def update_model(self, states, actions, reward):
         
-        state = torch.FloatTensor(state).unsqueeze(0)
+        states = torch.FloatTensor(states)
+        agent_distribution = self.model(states)
 
-        agent_distribution = self.model(state)
-        loss = -torch.log(torch.clamp(agent_distribution, 1e-10, 1.0)) * reward
+        # get total log likelihood of action sequence (i.e. product of likelihoods)
+        log_likelihood = torch.log(torch.clamp(agent_distribution, 1e-10, 1.0))
+        log_likelihood = log_likelihood[range(len(actions)), actions]
+        log_likelihood = log_likelihood.sum()
 
-        loss = loss.sum()
+        loss = -log_likelihood * reward
+        loss = loss.mean()
+
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

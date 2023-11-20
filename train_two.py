@@ -39,54 +39,65 @@ def get_random_dist(n):
     dist /= dist.sum()
     return dist
 
-env = TwoPayOffMatrix(random_payoff_matrix)
+env = TwoPayOffMatrix(blotto_payoff_matrix)
 
-agent = QLearningAgentLSTM(
-    env.action_space.n, 
+agent1 = QLearningAgentLSTM(
+    env.get_action_space(0), 
     env.observation_space.n, 
     LSTMBrain
 )
 
+agent2 = QLearningAgentLSTM(
+    env.get_action_space(1),
+    env.observation_space.n, 
+    LinearBrain
+)
+
 # target_dist = np.array([4/9, 4/9, 0, 0, 1/9])
 # target_dist = np.array([1/3, 1/3, 1/3])
-target_dist = np.array([1/4, 1/2, 1/4])
+# target_dist = np.array([0.16667,0.27778,0.55556])
 
-def train(agent, env, num_episodes=100000, log_interval=1000, tolerance=1e-3):
+def train(agent1, agent2, env, num_episodes=1000000, log_interval=1000, round_size=25):
 
     for episode in range(num_episodes):
         state = env.reset()
         done = False
-        loss_items = []
-        average_reward = []
-
+    
         while not done:
-            agent_distribution = agent.get_agent_distribution(state)
-            _, reward, done, _ = env.step(agent_distribution)
-            loss = agent.update_model(state, reward)
-            loss_items.append(loss)
-            average_reward.append(reward)
+            agent_1_distribution = agent1.get_agent_distribution(state)
+            agent_2_distribution = agent2.get_agent_distribution(state)
+
+            agent_1_actions = np.random.choice(
+                env.get_action_space(0), 
+                round_size, p=agent_1_distribution
+            )
+            agent_2_actions = np.random.choice(
+                env.get_action_space(1),
+                round_size, p=agent_2_distribution
+            )
+            
+            _, reward, done, _ = env.step([agent_1_actions, agent_2_actions])
+
+            states = [env.get_state()] * round_size
+            agent1_loss = agent1.update_model(states, agent_1_actions, reward[0])
+            agent2_loss = agent2.update_model(states, agent_2_actions, reward[1])
+
+            # loss_items.append(loss)
+            # average_reward.append(reward)
         
         if episode % log_interval == 0:
             print(f"Episode {episode}")
-            agent_distribution = agent.get_agent_distribution(state)
-            diff = np.linalg.norm(np.abs(agent_distribution - target_dist))
-            print('Agent distribution:', agent_distribution)
-            print('Agent Loss', np.mean(loss_items))
-            print('Average Reward:', np.mean(average_reward))
-            print('Distance from target:', np.abs(agent_distribution - target_dist))
-            print()
+            print('Agent1 Dist:', agent_1_distribution, agent1_loss, reward[0])
+            print('Agent2 Dist:', agent_2_distribution, agent2_loss, reward[1])
 
-            if diff < tolerance:
-                print('Agent has converged')
-                break
-            
-            loss_items = []
-            average_reward = []
+
         # sleep(1)
 
 
 if __name__ == '__main__':
-    train(agent, env)
+    train(agent1, agent2, env)
+
+
     # dist = np.array([0.47740626, 0.33812416, 0.1844696 ]) 
     # reward = env._calculate_reward(target_dist)
     # random_dist = get_random_dist(5)
@@ -99,8 +110,9 @@ if __name__ == '__main__':
     # print(random_dist, reward2, loss2.sum())
     # print(loss, reward)
 
-    reward = env._calculate_reward(target_dist)
-    agent_distribution = torch.FloatTensor(target_dist)
-    loss = torch.clamp(agent_distribution, 1e-10, 1.0) * reward
+    # reward = env._calculate_reward(target_dist)
+    # agent_distribution = torch.FloatTensor(target_dist)
+    # loss = torch.clamp(agent_distribution, 1e-10, 1.0) * reward 
+    # loss = loss.sum() + 2
     
-    print(reward, loss.sum())
+    # print(reward, loss)

@@ -6,7 +6,7 @@ import torch
 
 class MultiPayoffMatrixEnv(gym.Env):
 
-    def __init__(self, payoff_matrices: np.ndarray, round_size=1000):
+    def __init__(self, payoff_matrices: np.ndarray, round_size=100):
 
         self.payoff_matrices = payoff_matrices
         self.action_space = None

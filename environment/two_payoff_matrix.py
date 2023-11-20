@@ -6,49 +6,38 @@ from scipy.optimize import LinearConstraint
 
 class TwoPayOffMatrix(gym.Env):
 
-    def __init__(self, payoff_matrix):
+    def __init__(self, payoff_matrix, round_size=10):
 
         self.payoff_matrix = payoff_matrix
-        self.action_space = gym.spaces.Discrete(payoff_matrix.shape[0])
+        self.action_space = None
         self.observation_space = gym.spaces.Discrete(1)
+        self.round_size = round_size
         self.reset()
+
+    def get_action_space(self, agent_idx):
+        return self.payoff_matrix.shape[agent_idx]
 
     def reset(self):
         return self.get_state()
-    
+ 
     def get_state(self):
-        return torch.FloatTensor([0])
+        return [0]
     
-    # def add_random_noise()    
-    
-    def _calculate_reward(self, agent_distribution):
 
-        other_agent_action_space = self.payoff_matrix.shape[1]
-        bounds = [(0, 1)] * other_agent_action_space
-        linear_constraint = LinearConstraint(
-            np.ones(other_agent_action_space), [1], [1]
-        )
+    def calculate_reward(self, agent_1_actions, agent_2_actions):
 
-        def expected_reward(action_dist):
-            exp = 0
-            for i in range(self.action_space.n):
-                exp += agent_distribution[i] * np.sum(action_dist * -self.payoff_matrix[i])
-            return -exp
+        rewards = np.zeros(2)
+
+        for action_1, action_2 in zip(agent_1_actions, agent_2_actions):
+            rewards[0] += self.payoff_matrix[action_1][action_2]
+            rewards[1] += -self.payoff_matrix[action_1][action_2]
+
+        rewards /= len(agent_1_actions)
+
+        return rewards
         
-        # res = differential_evolution(
-        #     expected_reward, 
-        #     bounds=bounds, 
-        #     constraints=linear_constraint
-        # )
-        res = minimize(
-            expected_reward, 
-            np.ones(other_agent_action_space) / other_agent_action_space,
-            bounds=bounds, 
-            constraints=linear_constraint
-        )
-        return -res.fun
-        
-
-    def step(self, agent_distributions):
-        rewards = self._calculate_reward(agent_distributions)
+    def step(self, agent_actions):
+        rewards = self.calculate_reward(agent_actions[0], agent_actions[1])
         return self.get_state(), rewards, True, [0]
+
+

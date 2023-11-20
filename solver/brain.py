@@ -11,7 +11,7 @@ class LSTMBrain(nn.Module):
     A simple LSTM agent that takes in an observation and outputs an action distribution
     '''
 
-    def __init__(self, observation_space_size, action_space_size, lstm_units=64):
+    def __init__(self, observation_space_size, action_space_size, lstm_units=32):
         super(LSTMBrain, self).__init__()
         self.lstm = nn.LSTM(observation_space_size, lstm_units)
         self.fc = nn.Linear(lstm_units, action_space_size)

@@ -1,5 +1,6 @@
 import numpy as np
 from environment.multi_payoff_matrix import MultiPayoffMatrixEnv
+from environment.one_payoff_matrix import TwoPayOffMatrix
 
 from solver.agent import QLearningAgentLSTM
 from solver.brain import LSTMBrain, LinearBrain, RNNBrain
@@ -14,31 +15,21 @@ blotto_payoff_matrix = np.array([
     [-2, -2, 2, 2]
 ])
 
-random_payoff_matrix = np.array([
-    [10, 0, 0],
-    [0, 6, 0],
-    [0, 0, 3]
-])
 payoff_matrices = np.array([
     blotto_payoff_matrix, 
     -blotto_payoff_matrix
 ])
 
-payoff_matrices = np.array([
-    random_payoff_matrix, 
-    -random_payoff_matrix
+rock_paper_scissors_payoff_matrix = np.array([
+    [0, -1, 1],
+    [1, 0, -1],
+    [-1, 1, 0]
 ])
 
-# rock_paper_scissors_payoff_matrix = np.array([
-#     [0, -1, 1],
-#     [1, 0, -1],
-#     [-1, 1, 0]
-# ])
-
-# payoff_matrices = np.array([
-#     rock_paper_scissors_payoff_matrix, 
-#     -rock_paper_scissors_payoff_matrix
-# ])
+payoff_matrices = np.array([
+    rock_paper_scissors_payoff_matrix, 
+    -rock_paper_scissors_payoff_matrix
+])
 
 env = MultiPayoffMatrixEnv(payoff_matrices)
 n_agents = payoff_matrices.shape[0]
@@ -66,10 +57,8 @@ def train(agents, env, num_episodes=100000):
         while not done:
             agent_distributions = [agent.get_agent_distribution(state) for agent in agents]
             _, rewards, done, _ = env.step(agent_distributions)
-            print(rewards)
             for i in range(n_agents):
-                loss = agents[i].update_model(state, rewards[i])
-                print(f'Agent {i} loss: {loss}')
+                agents[i].update_model(state, rewards[i])
 
         if episode % 1000 == 0:
             print(f"Episode {episode}")
