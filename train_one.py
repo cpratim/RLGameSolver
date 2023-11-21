@@ -39,10 +39,11 @@ def train(agent, env,target_dist, num_episodes=100000, log_interval=1000, tolera
     episodes = []
     distances = []
     plt.figure()
-    plt.figure()
     plt.title('Convergence of Agent Distribution to Target Distribution')
     plt.xlabel('Episode')
     plt.ylabel('Distance')
+    line1, = plt.plot(episodes, distances, label='Agent')
+    plt.legend()
 
     for episode in range(num_episodes):
         state = env.reset()
@@ -60,21 +61,27 @@ def train(agent, env,target_dist, num_episodes=100000, log_interval=1000, tolera
             _, reward, done, _ = env.step(agent_distribution, agent_actions)
             _ = agent.update_model(states, agent_actions, reward)
 
-            distance = np.linalg.norm(target_dist- np.array(agent_distribution))
-            episodes.append(episode)
-            distances.append(distance)
+            
+        distance = np.linalg.norm(target_dist- np.array(agent_distribution))
+        if distance <= 0.001:
+            break 
+        episodes.append(episode)
+        distances.append(distance)
+        line1.set_data(episodes,distances)
 
-            plt.plot(episodes, distances)
-            plt.draw()
-            plt.pause(0.00000000001)
-            if distance <= 0.01:
-                break
+        plt.xlim(0, episode)
+        plt.ylim(0, max(distances))
+
+        plt.draw()
+        plt.pause(0.00000001)
+
         if episode % log_interval == 0:
             print(f"Episode {episode}")
             print(f'Agent distribution: {agent_distribution}')
             print("Distance: ", distance)
             
-            
+    plt.show()
+      
 if __name__ == '__main__':
 
     print("Choose a case (1(Rock Paper Scissors), 2(Colonel Blotto), or 3(Random Matrix) or enter anything else to input your own matrix and target):")
